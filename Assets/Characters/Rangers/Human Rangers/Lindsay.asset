@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5cda26fda05daad4b88e4071e6485831, type: 3}
+  m_Name: Lindsay
+  m_EditorClassIdentifier: 
+  maxHealth: 75
+  physicalForce: 15
+  baseArmor: 15
+  aimPrecision: 0
+  dexterity: 0
+  movementSpeed: 5
+  texture: {fileID: 0}
+  characterModel: {fileID: 0}
+  characterFullName: 
+  characterBackstory: 
+  characterHeight: 0
+  characterWidth: 0
+  characterWeight: 0
+  rangerColor: {r: 0.81960785, g: 0.16470589, b: 0.72065425, a: 1}
+  humanName: Lindsay
