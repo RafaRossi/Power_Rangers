@@ -16,7 +16,7 @@ public class Manager<T> : MonoBehaviour where T : MonoBehaviour
 
                 if (!_instance)
                 {
-                    _instance = new GameObject(typeof(T) + " Manager").AddComponent<T>();
+                    _instance = new GameObject(typeof(T).ToString()).AddComponent<T>();
                 }
             }
 
@@ -30,6 +30,8 @@ public class Manager<T> : MonoBehaviour where T : MonoBehaviour
         {
             Destroy(gameObject);
         }
+
+        Initialize();
     }
     #endregion
 

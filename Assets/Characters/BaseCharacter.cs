@@ -9,12 +9,17 @@ public abstract class BaseCharacter<T> : MonoBehaviour, IDamageble, IAttack wher
 
     protected float maxHealth;
     private float _health;
-    protected float Health
+    protected virtual float Health
     {
         get => _health;
         set
         {
             _health = value;
+
+            if(_health > maxHealth)
+            {
+                _health = maxHealth;
+            }
 
             if(_health <= 0)
             {
@@ -32,6 +37,19 @@ public abstract class BaseCharacter<T> : MonoBehaviour, IDamageble, IAttack wher
     protected float movementSpeed;
     protected bool canAttack = true;
 
+    private Animator _animator = null;
+    protected Animator Animator
+    {
+        get
+        {
+            if (!_animator)
+            {
+                _animator = GetComponent<Animator>();
+            }
+            return _animator;
+        }
+    }
+
     protected virtual void OnEnable()
     {
         onHealthEnd += Die;
@@ -44,6 +62,12 @@ public abstract class BaseCharacter<T> : MonoBehaviour, IDamageble, IAttack wher
 
     public abstract void Init(T character);
     public abstract IEnumerator Attack(AttackType attackType);
-    public abstract void TakeDamage(float damage);
+
+    public virtual void TakeDamage(float damage)
+    {
+        Health -= damage - (baseArmor / (baseArmor + 100));
+        Animator.SetTrigger("Damage");
+    }
+
     public abstract void Die();
 }

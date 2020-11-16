@@ -14,7 +14,7 @@ public class Characters : ScriptableObject
     public float movementSpeed;
     public float attackSpeed = 0.5f;
 
-    public Texture3D texture;
+    public Material characterMaterial;
     public GameObject characterModel;
 
     public List<Combo> availableCombos = new List<Combo>();

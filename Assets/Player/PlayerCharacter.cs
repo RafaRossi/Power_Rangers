@@ -5,9 +5,11 @@ using UnityEngine;
 
 enum PlayerState
 {
+    Idle,
     Grounded,
     Jump,
-    DoubleJump
+    DoubleJump,
+    Attacking
 }
 
 public enum RangerForm
@@ -42,8 +44,8 @@ public class PlayerCharacter : BaseCharacter<Rangers>
     private float energyGainRate = 2f;
     public Action onEnergyEnd;
 
-    private float jumpHeight = 1.0f;
-    private float jumpSpeed = -3.0f;
+    [SerializeField] private float jumpHeight = 1.0f;
+    [SerializeField] private float jumpSpeed = -3.0f;
     private Color rangerColor;
 
     private RangerForm currentForm = RangerForm.Human;
@@ -66,19 +68,29 @@ public class PlayerCharacter : BaseCharacter<Rangers>
 
     private Vector3 moveDirection = Vector3.zero;
 
-    [SerializeField] private Hero hero = null;
     [SerializeField] private Transform attackPoint = null;
-    [SerializeField] private float attackRange = 5f;
+    [SerializeField] private float attackRange = 3f;
 
     [SerializeField] private LayerMask attackMask = default;
 
     private List<AttackType> currentAttacks = new List<AttackType>();
     private List<Combo> currentCombos = new List<Combo>();
 
-    [SerializeField] private PlayerState state = PlayerState.Grounded;
+    [SerializeField] private PlayerState _state = PlayerState.Grounded;
+    private PlayerState State
+    {
+        get
+        {
+            return _state;
+        }
+        set
+        {
+            _state = value;
+        }
+    }
 
     private CharacterController _controller = null;
-    private CharacterController Controller
+    protected CharacterController Controller
     {
         get
         {
@@ -90,10 +102,20 @@ public class PlayerCharacter : BaseCharacter<Rangers>
         }
     }
 
-    private void Start()
-    {
-        Init(hero.human);
+    public Action OnPlayerDie = delegate { };
+
+    protected override float Health 
+    { 
+        get => base.Health;
+        set
+        {
+            base.Health = value;
+
+            GameManager.Instance.UpdateHUD(Health);
+        }
     }
+
+    private bool isGrounded = true;
 
     public override void Init(Rangers character)
     {
@@ -104,20 +126,25 @@ public class PlayerCharacter : BaseCharacter<Rangers>
 
     private void Update()
     {
-        moveDirection = new Vector3(Input.GetAxis("Horizontal"), 0, Input.GetAxis("Vertical"));
-        
-        if(Input.GetButtonDown("Fire1") && canAttack)
-        {
-            StartCoroutine(Attack(AttackType.Light));
-        }
+        moveDirection = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical"));
 
-        switch (state)
+        switch (State)
         {
             case PlayerState.Grounded:
+
+                if (Input.GetButtonDown("Fire1") && canAttack)
+                {
+                    StartCoroutine(Attack(AttackType.Light));
+                }
+                if (Input.GetButtonDown("Fire2") && canAttack)
+                {
+                    StartCoroutine(Attack(AttackType.Heavy));
+                }
+
                 if (Input.GetButtonDown("Jump"))
                 {
                     Jump();
-                    state = PlayerState.Jump;
+                    State = PlayerState.Jump;
                 }
                 break;
 
@@ -125,12 +152,22 @@ public class PlayerCharacter : BaseCharacter<Rangers>
                 if (Input.GetButtonDown("Jump"))
                 {
                     Jump();
-                    state = PlayerState.DoubleJump;
+                    State = PlayerState.DoubleJump;
+                }
+                break;
+            case PlayerState.Attacking:
+                if (Input.GetButtonDown("Fire1") && canAttack)
+                {
+                    StartCoroutine(Attack(AttackType.Light));
+                }
+                if (Input.GetButtonDown("Fire2") && canAttack)
+                {
+                    StartCoroutine(Attack(AttackType.Heavy));
                 }
                 break;
         }
 
-        if(Input.GetKeyDown(KeyCode.Return))
+        /*if(Input.GetKeyDown(KeyCode.Return))
         {
             switch (currentForm)
             {
@@ -143,12 +180,23 @@ public class PlayerCharacter : BaseCharacter<Rangers>
                     Morph(hero.human);
                     break;
             }
-        }      
+        }*/      
     }
 
     private void LateUpdate()
     {
+        if(isGrounded != CheckGrounded())
+        {
+            Animator.SetBool("Fall", isGrounded);
+        }
+        isGrounded = CheckGrounded();
+
         Move();
+    }
+
+    private bool CheckGrounded()
+    {
+        return Physics.Raycast(transform.position, Vector3.down, 0.2f, 1 << LayerMask.NameToLayer("Ground"));
     }
 
     private void Morph(Rangers character)
@@ -160,11 +208,15 @@ public class PlayerCharacter : BaseCharacter<Rangers>
         aimPrecision = character.aimPrecision;
         dexterity = character.dexterity;
         movementSpeed = character.movementSpeed;
-        attackSpeed = character.attackSpeed;
+        attackSpeed = 0.1f;
 
         rangerColor = character.rangerColor;
 
-        if(CurrentForm == RangerForm.Human)
+        Material[] _materials = GetComponentInChildren<SkinnedMeshRenderer>().materials;
+        _materials[0] = character.characterMaterial;
+        GetComponentInChildren<SkinnedMeshRenderer>().materials = _materials;
+
+        if (CurrentForm == RangerForm.Human)
         {
             CurrentForm = RangerForm.Ranger;
         }
@@ -172,8 +224,6 @@ public class PlayerCharacter : BaseCharacter<Rangers>
         {
             CurrentForm = RangerForm.Human;
         }
-
-        UpdateCombos(character);
     }
     private IEnumerator RegainEnergy()
     {
@@ -187,13 +237,20 @@ public class PlayerCharacter : BaseCharacter<Rangers>
 
     private void Move()
     {
-        if (Controller.isGrounded && playerVelocity < 0)
-        {
-            playerVelocity = 0f;
-            state = PlayerState.Grounded;
-        }
+        float speed = movementSpeed;
 
-        Controller.Move(moveDirection.normalized * Time.deltaTime * movementSpeed);
+        if(State == PlayerState.Attacking)
+        {
+            speed /= 5;
+        }else
+            if (isGrounded && playerVelocity <= 0)
+            {
+                playerVelocity = 0f;
+                State = PlayerState.Grounded;
+            }
+
+        Controller.Move(moveDirection.normalized * Time.deltaTime * speed);
+        Animator.SetFloat("Speed", moveDirection.normalized.magnitude);
 
         if (moveDirection != Vector3.zero)
         {
@@ -208,38 +265,57 @@ public class PlayerCharacter : BaseCharacter<Rangers>
     {
         float value = Mathf.Sqrt(jumpHeight * jumpSpeed * Physics.gravity.y);
         playerVelocity = value;
+
+        Animator.SetTrigger("Jump");
     }
 
     public override IEnumerator Attack(AttackType attackType)
     {
+        State = PlayerState.Attacking;
         currentAttacks.Add(attackType);
-        CheckCombos();
+
+        Animator.SetTrigger(attackType.ToString());
 
         canAttack = false;
-
-        Collider[] colliders = Physics.OverlapSphere(attackPoint.position, attackRange, attackMask);
-
-        foreach(Collider collider in colliders)
-        {
-            if (collider.TryGetComponent(out IDamageble hitObject))
-            {
-                hitObject.TakeDamage(physicalForce);
-            }
-        }
-
+        
         yield return new WaitForSeconds(attackSpeed);
 
         canAttack = true;
     }
 
-    public override void TakeDamage(float damage)
+    public void Heal(float health)
     {
-        Health -= damage - (baseArmor / (baseArmor + 100));
+        Health += health;
+    }
+
+    public void VerifyAttack()
+    {
+        Collider[] colliders = Physics.OverlapSphere(attackPoint.position, attackRange, attackMask);
+
+        foreach (Collider collider in colliders)
+        {
+            if (collider.TryGetComponent(out IDamageble hitObject))
+            {
+                hitObject.TakeDamage(physicalForce);
+                AudioManager.Instance.PlayPunch();
+            }
+        }
+    }
+
+    public void ResetAttack()
+    {
+        State = PlayerState.Idle;
     }
 
     public override void Die()
     {
+        enabled = false;
 
+        Animator.enabled = false;
+
+        Controller.enabled = false;
+
+        GameManager.Instance.OnPlayerDie();
     }
 
     private void OnDrawGizmosSelected()
