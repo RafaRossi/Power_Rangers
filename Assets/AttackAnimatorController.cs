@@ -13,6 +13,6 @@ public class AttackAnimatorController : StateMachineBehaviour
        {
             player = animator.gameObject.GetComponent<PlayerCharacter>();
        }
-        player.ResetAttack();
+        //player.ResetAttack();
     }
 }
